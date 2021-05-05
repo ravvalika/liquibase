@@ -1,0 +1,51 @@
+name: SQL Liquibase deployment
+
+
+
+# resources:
+#   repositories:
+#     - repository: 'liq' # Friendly name
+#       type: 'github' # Repo type
+#       name: 'vemulaanvesh/liquibase' # Repo path
+#       endpoint: 'vemulaanvesh' # Service Connection for GitHub Installation Token
+
+trigger:  
+  branches:
+    include: 
+    - master
+
+resources:
+- repo: self
+
+variables:
+  databaseName: dmp-sqldb-runway-configuration
+  keyVaultSecret: 'AZURE-SQL-SERVER-PASSWORD'
+  
+pool:
+  name: Azure Pipelines
+  vmImage: ubuntu-latest
+    
+stages:
+
+- stage: build
+  displayName: 'liquibase-build'
+  jobs:  
+  - template: 'azure-pipelines-liq.yml'
+    parameters:
+      environmentName: 'build'
+      host: '${{ variables.host }}' 
+      USER: '${{ variables.USER }}'
+      PASSWORD: '${{ variables.PASSWORD }}'
+
+- stage: Dev
+  displayName: 'liquibase-Dev'
+  dependsOn:
+  - build
+  jobs:
+  - template: 'azure-pipelines-liq.yml'
+    parameters:
+      environmentName: 'dev'
+      host: '${{ variables.host }}' 
+      USER: '${{ variables.USER }}'
+      PASSWORD: '${{ variables.PASSWORD }}'
+  condition: or(and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main')), and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/')))
